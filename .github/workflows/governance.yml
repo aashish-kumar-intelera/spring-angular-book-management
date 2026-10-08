@@ -16,7 +16,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  evaluate-signals:
+  publish-merge-verdict:
+    # A check suite on a commit that heads no pull request has no verdict to publish.
+    # The publisher is privileged, so a fork pull request never reaches it (under every
+    # fork policy). A check suite lists only pull requests whose head branch is in this
+    # repository, so the check_suite path already excludes forks.
+    if: (github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository) || github.event.check_suite.pull_requests[0].number
     runs-on: ubuntu-latest
     steps:
       - name: Acquire Stagr App installation token
@@ -27,6 +32,9 @@ jobs:
           private-key: "${{ secrets.STAGR_APP_PRIVATE_KEY }}"
 
       - name: Evaluate stage result signals
+        id: evaluate
+        # The verdict, pass or block, is published by the next step.
+        continue-on-error: true
         env:
           GH_TOKEN: "${{ steps.app-token.outputs.token }}"
           STAGR_APP_ID: "5239405"
@@ -158,3 +166,40 @@ jobs:
             exit 1
           fi
           echo "All blocking stage signals evaluated. Merge is eligible."
+
+      - name: Publish the merge-gate verdict on the pull request head
+        env:
+          GH_TOKEN: "${{ steps.app-token.outputs.token }}"
+          STAGR_APP_ID: "5239405"
+          PR_HEAD_SHA: "${{ github.event.pull_request.head.sha || github.event.check_suite.head_sha }}"
+          REPO: "${{ github.repository }}"
+          EVALUATION_OUTCOME: "${{ steps.evaluate.outcome }}"
+          RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: |
+          set -euo pipefail
+          if [[ "${EVALUATION_OUTCOME}" == "success" ]]; then
+            verdict_conclusion=success
+            verdict_title="Merge is eligible"
+          else
+            verdict_conclusion=failure
+            verdict_title="Merge is blocked"
+          fi
+          verdict_summary="Stagr governance evaluated the blocking stages on ${PR_HEAD_SHA}. Details: ${RUN_URL}"
+          existing_check_run="$(gh api \
+            "repos/${REPO}/commits/${PR_HEAD_SHA}/check-runs?check_name=stagr/governance&filter=latest&per_page=10" \
+            --jq "[.check_runs[] | select(.app.id | tostring == \"${STAGR_APP_ID}\")][0] // empty")"
+          if [[ -z "${existing_check_run}" ]]; then
+            gh api --method POST "repos/${REPO}/check-runs" \
+              -f "name=stagr/governance" -f "head_sha=${PR_HEAD_SHA}" -f status=completed \
+              -f "conclusion=${verdict_conclusion}" -f "output[title]=${verdict_title}" \
+              -f "output[summary]=${verdict_summary}" >/dev/null
+          elif [[ "$(echo "${existing_check_run}" | jq -r '.conclusion')" != "${verdict_conclusion}" ]]; then
+            existing_check_run_id="$(echo "${existing_check_run}" | jq -r '.id')"
+            gh api --method PATCH "repos/${REPO}/check-runs/${existing_check_run_id}" \
+              -f status=completed -f "conclusion=${verdict_conclusion}" -f "output[title]=${verdict_title}" \
+              -f "output[summary]=${verdict_summary}" >/dev/null
+          else
+            echo "stagr/governance already reads ${verdict_conclusion} on ${PR_HEAD_SHA}; nothing to publish."
+            exit 0
+          fi
+          echo "Published stagr/governance: ${verdict_title} (${PR_HEAD_SHA})."
