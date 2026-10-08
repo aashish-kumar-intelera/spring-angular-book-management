@@ -1,0 +1,6 @@
+version: 2
+profile: standard
+platform:
+  type: github
+  publisher:
+    app_id: 5239405
