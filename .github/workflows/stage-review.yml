@@ -15,7 +15,7 @@ concurrency:
 
 env:
   STAGR_STAGE_CONFIG: |
-    {"checkRunName":"stagr/stage/review","denyForks":true,"dependencies":[],"evidence":[{"kind":"review_result","producedBy":"chatgpt-codex-connector[bot]","selector":"codex-pull-request-review-summary","shaField":"review_summary_sha","successCondition":"completed"}],"gate":{"createdBy":"chatgpt-codex-connector[bot]","headShaBound":true,"kind":"no_open_threads","selector":""},"invocation":{"body":"@codex review","kind":"pr_comment","leaseMinutes":30},"privilegedStage":true,"publisherAppId":"5239405","routing":null,"schemaVersion":1,"stageId":"review","trustedRoles":["COLLABORATOR","MEMBER","OWNER"]}
+    {"checkRunName":"stagr/stage/review","denyForks":true,"dependencies":[],"evidence":[{"kind":"review_result","producedBy":"chatgpt-codex-connector[bot]","selector":"codex-pull-request-review-summary","shaField":"review_summary_sha","successCondition":"completed"}],"gate":{"createdBy":"chatgpt-codex-connector[bot]","headShaBound":true,"kind":"no_open_threads","selector":""},"handOffLabel":null,"invocation":{"body":"@codex review\n\nReview guidelines for this request:\n- Report a finding only when it describes a real problem in this change: a concrete input, caller or sequence of events that realistically reaches it, and the wrong result it causes.\n- Do not report hypothetical or highly unlikely cases, misuse the code's contract or existing validation already rules out, style preferences, or extra hardening whose cost exceeds the risk.\n- For each finding, state the triggering input or path and the impact in one or two sentences.\n- When unsure whether a finding is real, leave it out.","kind":"pr_comment","leaseMinutes":30},"privilegedStage":true,"publisherAppId":"5239405","routing":null,"schemaVersion":1,"stageId":"review","trustedRoles":["COLLABORATOR","MEMBER","OWNER"]}
   STAGR_RUNTIME_SCRIPT: |
     """Stage runtime for Stagr-generated GitHub stage workflows (issues #206, #205 and #207).
 
@@ -255,6 +255,9 @@ env:
         invocation_rule: InvocationRule
         dependency_rules: tuple[DependencyRule, ...] = ()
         route_rule: RouteRule | None = None
+        # Label that marks a pull request handed to a human after the automated fix rounds ran out;
+        # while it is set, the stage requests no new review. None when automated fixing is off.
+        hand_off_label: str | None = None
 
         @classmethod
         def from_json_text(cls, config_text: str) -> "StageRuntimeConfig":
@@ -290,6 +293,7 @@ env:
                         for item in document["dependencies"]
                     ),
                     route_rule=cls._parse_route_rule(document["routing"]),
+                    hand_off_label=document.get("handOffLabel"),
                 )
             except (ValueError, KeyError, TypeError, AttributeError) as error:
                 raise RuntimeConfigError(f"Invalid STAGR_STAGE_CONFIG: {error!r}") from error
@@ -930,6 +934,7 @@ env:
         head_sha: str
         head_repository_id: int | None
         base_repository_id: int | None
+        labels: frozenset[str] = frozenset()
 
         @classmethod
         def from_api(cls, payload: Mapping[str, Any]) -> "PullRequestView":
@@ -942,6 +947,7 @@ env:
                 head_sha=payload["head"]["sha"],
                 head_repository_id=head_repository.get("id"),
                 base_repository_id=payload["base"]["repo"]["id"],
+                labels=frozenset(str(label.get("name") or "") for label in payload.get("labels") or ()),
             )
 
         @property
@@ -1357,6 +1363,10 @@ env:
             ineligible_reason = self._eligibility.ineligible_reason(pull, request.event_head_sha)
             if ineligible_reason:
                 return ReconcileResult(ACTION_SKIPPED, ineligible_reason)
+            if self._config.hand_off_label and self._config.hand_off_label in pull.labels:
+                return ReconcileResult(
+                    ACTION_SKIPPED, "the pull request was handed to a human; remove the hand-off label to resume reviews"
+                )
             comments_path = f"repos/{self._repository}/issues/{pull.number}/comments"
             issue_comments = self._github_api.get_items(f"{comments_path}?per_page=100")
             if self._evidence_evaluator.evaluate(issue_comments, pull.head_sha).is_present:
