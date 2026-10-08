@@ -29,7 +29,7 @@ jobs:
           PR_NUMBER: "${{ github.event.pull_request.number }}"
           EVENT_HEAD_SHA: "${{ github.event.pull_request.head.sha }}"
           THREAD_AUTHOR_LOGINS: '["chatgpt-codex-connector"]'
-          FIXED_REPLY_LOGINS: '[]'
+          FIXED_REPLY_LOGINS: '["claude", "github-actions"]'
           FIXED_MARKER: "<!-- stagr:finding-fixed -->"
         run: |
           set -euo pipefail

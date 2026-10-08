@@ -1,6 +1,82 @@
+# Stagr pipeline for this repository: what runs on every pull request and what must pass
+# before it can merge. Edit this file, then run `stagr plan` to preview the workflow files
+# and `stagr apply` to write them. Each setting is explained, under its name, in
+# the Stagr configuration guide (CONFIGURATION.md).
+# Settings starting with `#` are off: to use a block, delete the `#` at the start of each of its
+# lines. Lines starting with `# ` explain the setting below them; leave those as they are.
+
 version: 2
+
+# Profiles. Switch with `stagr profile <name>`, then run `stagr plan` and `stagr apply`.
+#   minimal   stages: review
+#   standard  stages: review, security (after review)
+#   custom    no built-in stages; you list every stage under `stages`
 profile: minimal
+
+# Where the pipeline runs and who may drive it.
 platform:
-  type: github
+  type: github                          # supported: github
+  # The Stagr GitHub App that publishes each stage's result and the merge verdict.
   publisher:
     app_id: 5239405
+    # Name of the secret holding the App's private key.
+    #private_key_secret: STAGR_APP_PRIVATE_KEY
+  # Pull requests from forks never start a stage (true), so outside code never runs
+  # with this repository's secrets.
+  #same_repo_only: true                  # true or false
+  # Pull request authors whose changes Stagr reviews and fixes automatically.
+  #trusted_roles: [owner, member, collaborator]  # any of: owner, member, collaborator, contributor
+  # Name of the secret holding a real user's token. Stagr posts the review requests
+  # (and resolves finished review threads) as that user.
+  #auth:
+  #  token_secret: REMEDIATION_TOKEN
+  # Label that hands a pull request to a human when the automated fix rounds run out.
+  #labels:
+  #  human_merge: human-merge
+
+# Secret names per provider, when a provider must use a different secret than the
+# platform token above.
+#providers:
+#  openai:
+#    secrets:
+#      TRUSTED_COMMENTER_TOKEN: REMEDIATION_TOKEN
+
+# Stages: the agents that review every pull request. The profile above turns stages on:
+#   review    on in: minimal, standard
+#   security  on in: standard
+# Your profile's stages are already on and required (validation V-S16). Uncomment a stage
+# below to add one your profile lacks or to change a stage's settings; see `stages`.
+#stages:
+#  - id: review                        # unique; lowercase letters, digits, - and _
+#    type: review                      # supported today: review, security
+#    provider: openai                  # supported today: openai (codex)
+#    skill: code-review                # shipped: code-review, security-review, or your own
+#    gate: blocking                    # supported today: blocking
+#    triggers: [pr_opened, pr_updated]  # any of: pr_opened, pr_updated, manual, issue_labeled
+#    depends_on: []                    # ids of stages that must pass first
+#  - id: security
+#    type: security
+#    provider: openai
+#    skill: security-review
+#    gate: blocking
+#    triggers: [pr_opened, pr_updated]
+#    depends_on: [review]
+
+# Fast path: a pull request that changes only files matching `globs` (for example
+# documentation) runs only the `fast` stages, so small changes get a faster, cheaper
+# review; every other pull request runs the `normal` stages. See `routing.fast_path`.
+#routing:
+#  fast_path:
+#    enabled: true                     # true or false
+#    globs: ["docs/**", "**/*.md"]     # file patterns; ** matches any depth
+#    stages:
+#      fast: [review]
+#      normal: [review, security]
+
+# Automated fixes: an agent answers each review, fixing the findings it judges real and
+# declining the rest with its reasons, so reviews turn into fixes without waiting on a
+# person. Optional under every profile; setup and limits: see `remediation`.
+remediation:
+  provider: anthropic                 # supported: anthropic (Claude Code Action)
+  max_rounds: 5                       # 1 to 10
+  api_key_secret: ANTHROPIC_API_KEY
