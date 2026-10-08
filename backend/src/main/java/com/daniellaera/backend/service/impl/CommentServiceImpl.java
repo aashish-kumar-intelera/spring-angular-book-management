@@ -68,6 +68,27 @@ public class CommentServiceImpl implements CommentService {
         return convertCommentEntityToCommentDTO(savedComment);
     }
 
+    @Override
+    public CommentDTO updateComment(Integer commentId, String userEmail, CommentDTO commentDTO) {
+        log.info("User {} is editing comment {}", userEmail, commentId);
+
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new EntityNotFoundException("Comment not found with ID: " + commentId));
+
+        comment.setContent(commentDTO.getContent());
+        return convertCommentEntityToCommentDTO(commentRepository.save(comment));
+    }
+
+    @Override
+    public void deleteComment(Integer commentId, String userEmail) {
+        log.info("User {} is deleting comment {}", userEmail, commentId);
+
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new EntityNotFoundException("Comment not found with ID: " + commentId));
+
+        commentRepository.delete(comment);
+    }
+
     private CommentDTO convertCommentEntityToCommentDTO(Comment comment) {
         CommentDTO commentDTO = new CommentDTO();
         commentDTO.setContent(comment.getContent());

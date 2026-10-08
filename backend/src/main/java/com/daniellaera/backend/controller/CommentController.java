@@ -43,4 +43,24 @@ public class CommentController {
         String userEmail = currentUser.getEmail();
         return ResponseEntity.ok(commentService.createCommentByBookIdAndUserId(bookId, userEmail, commentDTO));
     }
+
+    @PreAuthorize("hasAuthority('USER')")
+    @PutMapping("/edit/{commentId}")
+    public ResponseEntity<CommentDTO> updateComment(
+            @PathVariable Integer commentId,
+            @RequestBody CommentDTO commentDTO,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        return ResponseEntity.ok(commentService.updateComment(commentId, currentUser.getEmail(), commentDTO));
+    }
+
+    @PreAuthorize("hasAuthority('USER')")
+    @DeleteMapping("/{commentId}")
+    public ResponseEntity<Void> deleteComment(
+            @PathVariable Integer commentId,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        commentService.deleteComment(commentId, currentUser.getEmail());
+        return ResponseEntity.noContent().build();
+    }
 }
