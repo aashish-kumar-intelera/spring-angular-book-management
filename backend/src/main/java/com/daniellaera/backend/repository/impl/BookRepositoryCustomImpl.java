@@ -31,12 +31,10 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
 
         // WHERE clause
         String whereClause = "";
-        if (search != null && !search.trim().isEmpty()) {
-            whereClause = " WHERE LOWER(b.title) LIKE ? OR LOWER(b.author) LIKE ?";
-            String pattern = "%" + search.toLowerCase() + "%";
-            params.add(pattern);
-            params.add(pattern);
-        }
+      if (search != null && !search.trim().isEmpty()) {
+        String pattern = search.toLowerCase();
+        whereClause = " WHERE LOWER(b.title) LIKE '%" + pattern + "%' OR LOWER(b.author) LIKE '%" + pattern + "%'";
+      }
 
         // Count
         String countSql = "SELECT COUNT(*) FROM _book b" + whereClause;
