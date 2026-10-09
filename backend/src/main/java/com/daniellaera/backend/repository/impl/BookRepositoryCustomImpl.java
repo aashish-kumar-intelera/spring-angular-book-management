@@ -112,6 +112,7 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
             u.last_name as user_last_name,
             cu.first_name as comment_user_first_name,
             cu.last_name as comment_user_last_name,
+            c.id as comment_id,
             c.content as comment_content,
             r.score as rating_score,
             r.user_id as rating_user_id,
@@ -178,6 +179,7 @@ public class BookRepositoryCustomImpl implements BookRepositoryCustom {
 
                             if (!addedComments.contains(commentKey)) {
                                 comments.add(CommentDTO.builder()
+                                        .id(rs.getInt("comment_id"))
                                         .authorFullName(authorFullName)
                                         .content(commentContent)
                                         .build());
