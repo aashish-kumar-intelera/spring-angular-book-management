@@ -11,8 +11,10 @@ import com.daniellaera.backend.service.CommentService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -74,6 +76,7 @@ public class CommentServiceImpl implements CommentService {
 
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new EntityNotFoundException("Comment not found with ID: " + commentId));
+        checkOwnership(comment, userEmail);
 
         comment.setContent(commentDTO.getContent());
         return convertCommentEntityToCommentDTO(commentRepository.save(comment));
@@ -85,8 +88,16 @@ public class CommentServiceImpl implements CommentService {
 
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new EntityNotFoundException("Comment not found with ID: " + commentId));
+        checkOwnership(comment, userEmail);
 
         commentRepository.delete(comment);
+    }
+
+    private void checkOwnership(Comment comment, String userEmail) {
+        if (userEmail == null || !userEmail.equals(comment.getUser().getEmail())) {
+            log.warn("User {} is not allowed to modify comment {}", userEmail, comment.getId());
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only modify your own comments");
+        }
     }
 
     private CommentDTO convertCommentEntityToCommentDTO(Comment comment) {
