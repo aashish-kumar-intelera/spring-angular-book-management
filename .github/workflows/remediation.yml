@@ -16,7 +16,7 @@ jobs:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       contains(fromJSON('["COLLABORATOR", "MEMBER", "OWNER"]'), github.event.pull_request.author_association) &&
-      (contains(fromJSON('["chatgpt-codex-connector[bot]"]'), github.event.review.user.login) || (github.event.review.user.type != 'Bot' && contains(fromJSON('["COLLABORATOR", "MEMBER", "OWNER"]'), github.event.review.author_association)))
+      (contains(fromJSON('["stagr-app-bot[bot]"]'), github.event.review.user.login) || (github.event.review.user.type != 'Bot' && contains(fromJSON('["COLLABORATOR", "MEMBER", "OWNER"]'), github.event.review.author_association)))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -99,9 +99,9 @@ jobs:
           GH_TOKEN: "${{ github.token }}"
         with:
           anthropic_api_key: "${{ secrets.ANTHROPIC_API_KEY }}"
-          allowed_bots: "chatgpt-codex-connector[bot]"
+          allowed_bots: "stagr-app-bot[bot]"
           # Only the reviewer's and the review backends' comments reach the agent's context.
-          include_comments_by_actor: "${{ github.event.review.user.login }},chatgpt-codex-connector[bot]"
+          include_comments_by_actor: "${{ github.event.review.user.login }},stagr-app-bot[bot]"
           prompt: |
             You are the implementer on pull request #${{ github.event.pull_request.number }} in ${{ github.repository }},
             branch ${{ github.event.pull_request.head.ref }}. Reviewer ${{ github.event.review.user.login }} just submitted

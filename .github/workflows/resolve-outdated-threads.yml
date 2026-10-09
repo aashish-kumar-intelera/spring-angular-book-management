@@ -28,7 +28,7 @@ jobs:
           GH_TOKEN: "${{ secrets.REMEDIATION_TOKEN }}"
           PR_NUMBER: "${{ github.event.pull_request.number }}"
           EVENT_HEAD_SHA: "${{ github.event.pull_request.head.sha }}"
-          THREAD_AUTHOR_LOGINS: '["chatgpt-codex-connector"]'
+          THREAD_AUTHOR_LOGINS: '["stagr-app-bot"]'
           FIXED_REPLY_LOGINS: '["claude", "github-actions"]'
           FIXED_MARKER: "<!-- stagr:finding-fixed -->"
         run: |

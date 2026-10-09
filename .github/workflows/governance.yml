@@ -160,6 +160,7 @@ jobs:
 
           overall_pass=true
           evaluate_stage_signal "review" "stagr/stage/review" "blocking" || overall_pass=false
+          evaluate_stage_signal "security" "stagr/stage/security" "blocking" || overall_pass=false
 
           if [[ "${overall_pass}" == "false" ]]; then
             echo "::error::One or more blocking stage signals did not pass. Merge is not eligible."

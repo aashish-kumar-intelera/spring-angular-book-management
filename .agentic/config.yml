@@ -11,7 +11,7 @@ version: 2
 #   minimal   stages: review
 #   standard  stages: review, security (after review)
 #   custom    no built-in stages; you list every stage under `stages`
-profile: minimal
+profile: standard
 
 # Where the pipeline runs and who may drive it.
 platform:
@@ -19,48 +19,48 @@ platform:
   # The Stagr GitHub App that publishes each stage's result and the merge verdict.
   publisher:
     app_id: 5239405
-    # Name of the secret holding the App's private key.
-    #private_key_secret: STAGR_APP_PRIVATE_KEY
+    # The App's slug, the name in its URL; when to set it: see `publisher.app_slug`.
+    app_slug: stagr-app-bot
   # Pull requests from forks never start a stage (true), so outside code never runs
   # with this repository's secrets.
   #same_repo_only: true                  # true or false
   # Pull request authors whose changes Stagr reviews and fixes automatically.
   #trusted_roles: [owner, member, collaborator]  # any of: owner, member, collaborator, contributor
-  # Name of the secret holding a real user's token. Stagr posts the review requests
-  # (and resolves finished review threads) as that user.
-  #auth:
-  #  token_secret: REMEDIATION_TOKEN
   # Label that hands a pull request to a human when the automated fix rounds run out.
   #labels:
   #  human_merge: human-merge
 
-# Secret names per provider, when a provider must use a different secret than the
-# platform token above.
-#providers:
-#  openai:
-#    secrets:
-#      TRUSTED_COMMENTER_TOKEN: REMEDIATION_TOKEN
+# Secret names: the repository secret that holds each credential Stagr uses, never its
+# value. Shown with the default names; set one only when your secret is named
+# differently. Which ones you need: see `secrets`.
+secrets:
+  app_private_key: STAGR_APP_PRIVATE_KEY  # the Stagr GitHub App's private key
+  platform_token: REMEDIATION_TOKEN       # a real user's token (review requests, threads)
+  openai_api_key: OPENAI_API_KEY          # the `codex-api` backend
+  anthropic_api_key: ANTHROPIC_API_KEY    # the `remediation` agent
 
 # Stages: the agents that review every pull request. The profile above turns stages on:
 #   review    on in: minimal, standard
 #   security  on in: standard
 # Your profile's stages are already on and required (validation V-S16). Uncomment a stage
 # below to add one your profile lacks or to change a stage's settings; see `stages`.
-#stages:
-#  - id: review                        # unique; lowercase letters, digits, - and _
-#    type: review                      # supported today: review, security
-#    provider: openai                  # supported today: openai (codex)
-#    skill: code-review                # shipped: code-review, security-review, or your own
-#    gate: blocking                    # supported today: blocking
-#    triggers: [pr_opened, pr_updated]  # any of: pr_opened, pr_updated, manual, issue_labeled
-#    depends_on: []                    # ids of stages that must pass first
-#  - id: security
-#    type: security
-#    provider: openai
-#    skill: security-review
-#    gate: blocking
-#    triggers: [pr_opened, pr_updated]
-#    depends_on: [review]
+stages:
+  - id: review                        # unique; lowercase letters, digits, - and _
+    type: review                      # supported today: review, security
+    provider: openai                  # supported today: openai
+    backend: codex-api                    # supported today: codex (default) or codex-api
+    skill: code-review                # shipped: code-review, security-review, or your own
+    gate: blocking                    # supported today: blocking
+    triggers: [pr_opened, pr_updated]  # any of: pr_opened, pr_updated, manual, issue_labeled
+    depends_on: []                    # ids of stages that must pass first
+  - id: security
+    type: security
+    provider: openai
+    backend: codex-api
+    skill: security-review
+    gate: blocking
+    triggers: [pr_opened, pr_updated]
+    depends_on: [review]
 
 # Fast path: a pull request that changes only files matching `globs` (for example
 # documentation) runs only the `fast` stages, so small changes get a faster, cheaper
@@ -79,4 +79,3 @@ platform:
 remediation:
   provider: anthropic                 # supported: anthropic (Claude Code Action)
   max_rounds: 5                       # 1 to 10
-  api_key_secret: ANTHROPIC_API_KEY
