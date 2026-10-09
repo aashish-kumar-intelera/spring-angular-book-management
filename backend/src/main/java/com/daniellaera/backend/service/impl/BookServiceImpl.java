@@ -245,6 +245,7 @@ public class BookServiceImpl implements BookService {
 
     private CommentDTO convertCommentToCommentDTO(Comment comment) {
         CommentDTO commentDto = new CommentDTO();
+        commentDto.setId(comment.getId());
         commentDto.setContent(comment.getContent());
         commentDto.setAuthorFullName(comment.getUser().getFullName());
         return commentDto;

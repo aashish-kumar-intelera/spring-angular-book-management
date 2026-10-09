@@ -102,6 +102,7 @@ public class CommentServiceImpl implements CommentService {
 
     private CommentDTO convertCommentEntityToCommentDTO(Comment comment) {
         CommentDTO commentDTO = new CommentDTO();
+        commentDTO.setId(comment.getId());
         commentDTO.setContent(comment.getContent());
         commentDTO.setAuthorFullName(comment.getUser().getFullName());
         return commentDTO;
