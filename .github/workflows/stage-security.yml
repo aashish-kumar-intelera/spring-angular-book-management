@@ -1880,6 +1880,7 @@ jobs:
           codex-version: "0.156.1"
           codex-args: '["--config", "project_doc_max_bytes=0"]'
           allow-bot-users: stagr-app-bot,claude
+          model: gpt-5.5
 
       - name: Hand the findings to the publish job
         id: findings
