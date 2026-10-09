@@ -4,6 +4,8 @@ name: "Stagr governance"
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+  check_run:
+    types: [completed]
   check_suite:
     types: [completed]
 
@@ -12,16 +14,16 @@ permissions:
   checks: read
 
 concurrency:
-  group: "stagr-governance-${{ github.event.pull_request.number || github.event.check_suite.pull_requests[0].number }}"
+  group: "stagr-governance-${{ github.event.pull_request.number || ((github.event_name == 'check_run' && github.event.check_run.app.id == 5239405 && github.event.check_run.pull_requests[0].number && (github.event.check_run.name == 'stagr/stage/review' || github.event.check_run.name == 'stagr/stage/security')) || (github.event_name == 'check_suite' && github.event.check_suite.app.id == 5239405 && github.event.check_suite.pull_requests[0].number)) && (github.event.check_run.pull_requests[0].number || github.event.check_suite.pull_requests[0].number) || github.run_id }}"
   cancel-in-progress: false
 
 jobs:
   publish-merge-verdict:
-    # A check suite on a commit that heads no pull request has no verdict to publish.
+    # Only a stage signal or a Stagr check suite on a pull request has a verdict to publish.
     # The publisher is privileged, so a fork pull request never reaches it (under every
-    # fork policy). A check suite lists only pull requests whose head branch is in this
-    # repository, so the check_suite path already excludes forks.
-    if: (github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository) || github.event.check_suite.pull_requests[0].number
+    # fork policy). A check run or check suite lists only pull requests whose head branch
+    # is in this repository, so those paths already exclude forks.
+    if: (github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'check_run' && github.event.check_run.app.id == 5239405 && github.event.check_run.pull_requests[0].number && (github.event.check_run.name == 'stagr/stage/review' || github.event.check_run.name == 'stagr/stage/security')) || (github.event_name == 'check_suite' && github.event.check_suite.app.id == 5239405 && github.event.check_suite.pull_requests[0].number)
     runs-on: ubuntu-latest
     steps:
       - name: Acquire Stagr App installation token
@@ -38,7 +40,7 @@ jobs:
         env:
           GH_TOKEN: "${{ steps.app-token.outputs.token }}"
           STAGR_APP_ID: "5239405"
-          PR_HEAD_SHA: "${{ github.event.pull_request.head.sha || github.event.check_suite.head_sha }}"
+          PR_HEAD_SHA: "${{ github.event.pull_request.head.sha || github.event.check_run.head_sha || github.event.check_suite.head_sha }}"
           REPO: "${{ github.repository }}"
         run: |
           set -euo pipefail
@@ -172,7 +174,7 @@ jobs:
         env:
           GH_TOKEN: "${{ steps.app-token.outputs.token }}"
           STAGR_APP_ID: "5239405"
-          PR_HEAD_SHA: "${{ github.event.pull_request.head.sha || github.event.check_suite.head_sha }}"
+          PR_HEAD_SHA: "${{ github.event.pull_request.head.sha || github.event.check_run.head_sha || github.event.check_suite.head_sha }}"
           REPO: "${{ github.repository }}"
           EVALUATION_OUTCOME: "${{ steps.evaluate.outcome }}"
           RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
